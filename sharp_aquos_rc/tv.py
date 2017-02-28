@@ -165,10 +165,10 @@ class TV(object):
         """
         inputs = [' '] * len(self.command['input'])
         for key in self.command['input']:
-            inputs[self.command['input'][key]['order']] = {"key":key, "name":self.command['input'][key]['name']}
+            inputs[self.command['input'][key]['index']] = {"key":key, "name":self.command['input'][key]['name']}
         return inputs
 
-    def input(self, opt):
+    def input(self, opt='?'):
         """
         Description:
 
@@ -179,11 +179,16 @@ class TV(object):
             opt: string
                 Name provided from input list or key from yaml ("HDMI 1" or "hdmi_1")
         """
-
-        for key in self.command['input']:
-            if (key == opt) or (self.command['input'][key]['name'] == opt):
-                return self._send_command(['input', key, 'command'])
-        return False
+        if opt == '?':
+            index = self._send_command('input_index')
+            for key in self.command['input']:
+                if (self.command['input'][key]['index'] == index):
+                    return self.command['input'][key]['name']
+        else:
+            for key in self.command['input']:
+                if (key == opt) or (self.command['input'][key]['name'] == opt):
+                    return self._send_command(['input', key, 'command'])
+            return False
 
     def av_mode(self, opt='?'):
         """
@@ -408,4 +413,4 @@ class TV(object):
             opt: string
                 key provided from input list
         """
-        return self._send_command("remote", opt)
+        return self._send_command(['remote', opt])
