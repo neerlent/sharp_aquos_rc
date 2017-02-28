@@ -19,12 +19,12 @@ pip install sharp_aquos_rc
 >>> import sharp_aquos_rc
 >>>
 >>> tv = sharp_aquos_rc.TV('192.168.1.5', 10002, 'admin', 'password')
->>> 
+>>>
 >>> tv.power() # Returns 1 if TV is on and 0 if TV is off
 1
 >>> tv.power(0) # Turn the TV off
 True
->>> tv.input(2) # Set the TV to HDMI Input 2
+>>> tv.input('HDMI 2') # Set the TV to HDMI Input 2
 True
 ```
 
@@ -50,5 +50,3 @@ Currently on the TODO list:
 
 
 [sharp-user-manual]: <http://files.sharpusa.com/Downloads/ForHome/HomeEntertainment/LCDTVs/Manuals/2014_TV_OM.pdf>
-
-
