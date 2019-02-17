@@ -3,6 +3,10 @@ import socket
 import time
 import pkgutil
 import yaml
+import logging
+
+
+_LOGGER = logging.getLogger(__name__)
 
 
 class TV(object):
@@ -71,8 +75,11 @@ class TV(object):
                 # Send command
                 if opt != '':
                     command += str(opt)
+                    
                 sock_con.send(str.encode(command.ljust(8) + '\r'))
                 status = bytes.decode(sock_con.recv(1024)).strip()
+                
+                _LOGGER.debug(command+": "+status)
             except (OSError, socket.error) as exp:
                 time.sleep(0.1)
                 if time.time() >= end_time:
@@ -160,12 +167,12 @@ class TV(object):
         Description:
 
             Get input list
-            Returns an ordered list of all available input keys and names
+            Returns an dict of all available input keys and names
 
         """
-        inputs = [' '] * len(self.command['input'])
+        inputs = {}
         for key in self.command['input']:
-            inputs[self.command['input'][key]['index']] = {"key":key, "name":self.command['input'][key]['name']}
+            inputs[key] = self.command['input'][key]['name']
         return inputs
 
     def input(self, opt='?'):
@@ -181,9 +188,12 @@ class TV(object):
         """
         if opt == '?':
             index = self._send_command('input_index')
-            for key in self.command['input']:
-                if (self.command['input'][key]['index'] == index):
-                    return self.command['input'][key]['name']
+            if index == False:
+                return self.command['input']['tv']['name']
+            else:
+               for key in self.command['input']:
+                    if (self.command['input'][key]['index'] == index):
+                        return self.command['input'][key]['name']
         else:
             for key in self.command['input']:
                 if (key == opt) or (self.command['input'][key]['name'] == opt):
@@ -380,14 +390,14 @@ class TV(object):
         Description:
             Change the Channel +1
         """
-        self._send_command('digital_channel_up')
+        self._send_command('channel_up')
 
     def channel_down(self):
         """
         Description:
             Change the Channel -1
         """
-        self._send_command('digital_channel_down')
+        self._send_command('channel_down')
 
     def get_remote_button_list(self):
         """
