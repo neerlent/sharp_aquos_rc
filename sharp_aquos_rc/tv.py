@@ -1,12 +1,7 @@
 """Module to control a Sharp Aquos Remote Control enabled TV."""
-import socket
-import time
 import pkgutil
 import yaml
-import logging
-
-
-_LOGGER = logging.getLogger(__name__)
+import serial
 
 
 class TV(object):
@@ -22,20 +17,24 @@ class TV(object):
     """
     _VALID_COMMAND_MAPS = ["eu", "us", "cn", "jp"]
 
-    def __init__(self, ip, port, username, password,  # pylint: disable=R0913
-                 timeout=5, connection_timeout=2, command_map='us'):
-        self.ip_address = ip
-        self.port = port
-        self.auth = str.encode(username + '\r' + password + '\r')
-        self.timeout = timeout
-        self.connection_timeout = connection_timeout
-        if self.timeout <= self.connection_timeout:
-            raise ValueError("timeout should be greater than connection_timeout")
-
+    def __init__(self, url, baudrate=19200, stopbits=serial.STOPBITS_ONE,
+                 bytesize=serial.EIGHTBITS, parity=serial.PARITY_NONE,
+                 timeout=2, write_timeout=2, command_map='us'):
+        """
+        Initialize the client.
+        """
+        self._port = serial.serial_for_url(url, do_not_open=True)
+        self._port.baudrate = baudrate
+        self._port.stopbits = stopbits
+        self._port.bytesize = bytesize
+        self._port.parity = parity
+        self._port.timeout = timeout
+        self._port.write_timeout = write_timeout
+        self._port.open()
         if command_map not in self._VALID_COMMAND_MAPS:
             raise ValueError("command_layout should be one of %s, not %s" % (str(self._VALID_COMMAND_MAPS), command_map))
 
-        stream = pkgutil.get_data("sharp_aquos_rc", "commands/%s.yaml" %command_map)
+        stream = pkgutil.get_data("sharp_aquos_rc", "commands/%s.yaml" % command_map)
         self.command = yaml.load(stream)
 
     def _send_command_raw(self, command, opt=''):
@@ -59,47 +58,37 @@ class TV(object):
         # Page 58 - Communication conditions for IP
         # The connection could be lost (but not only after 3 minutes),
         # so we need to the remote commands to be sure about states
-        end_time = time.time() + self.timeout
-        while time.time() < end_time:
-            try:
-                # Connect
-                sock_con = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-                sock_con.settimeout(self.connection_timeout)
-                sock_con.connect((self.ip_address, self.port))
-
-                # Authenticate
-                sock_con.send(self.auth)
-                sock_con.recv(1024)
-                sock_con.recv(1024)
-
-                # Send command
-                if opt != '':
-                    command += str(opt)
-                    
-                sock_con.send(str.encode(command.ljust(8) + '\r'))
-                status = bytes.decode(sock_con.recv(1024)).strip()
-                
-                _LOGGER.debug(command+": "+status)
-            except (OSError, socket.error) as exp:
-                time.sleep(0.1)
-                if time.time() >= end_time:
-                    raise exp
-            else:
-                sock_con.close()
-                # Sometimes the status is empty so
-                # We need to retry
-                if status != u'':
-                    break
+        # clear
+        self._port.reset_output_buffer()
+        self._port.reset_input_buffer()
+        # Send command
+        if opt != '':
+            command += str(opt)
+        self._port.write(str.encode(command.ljust(8) + '\r'))
+        self._port.flush()
+        # receive
+        result = bytearray()
+        while True:
+            char = self._port.read(1)
+            if char is None:
+                break
+            if not char:
+                raise serial.SerialTimeoutException(
+                    'Connection timed out! Last received bytes {}'
+                    .format([hex(a) for a in result]))
+            result += char
+            if result and result[-1:] == b'\r':
+                break
+        status = bytes(result)
 
         if status == "OK":
             return True
-        elif status == "ERR":
+        if status == "ERR":
             return False
-        else:
-            try:
-                return int(status)
-            except ValueError:
-                return status
+        try:
+            return int(status)
+        except ValueError:
+            return status
 
     def _check_command_name(self, name, dicitionary):
         if name not in dicitionary:
