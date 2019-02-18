@@ -2,7 +2,9 @@
 import pkgutil
 import yaml
 import serial
+import logging
 
+_LOGGER = logging.getLogger(__name__)
 
 class TV(object):
     """
@@ -17,9 +19,9 @@ class TV(object):
     """
     _VALID_COMMAND_MAPS = ["eu", "us", "cn", "jp"]
 
-    def __init__(self, url, baudrate=19200, stopbits=serial.STOPBITS_ONE,
+    def __init__(self, url, baudrate=9600, stopbits=serial.STOPBITS_ONE,
                  bytesize=serial.EIGHTBITS, parity=serial.PARITY_NONE,
-                 timeout=2, write_timeout=2, command_map='us'):
+                 timeout=1, write_timeout=1, command_map='us'):
         """
         Initialize the client.
         """
@@ -34,7 +36,8 @@ class TV(object):
         if command_map not in self._VALID_COMMAND_MAPS:
             raise ValueError("command_layout should be one of %s, not %s" % (str(self._VALID_COMMAND_MAPS), command_map))
 
-        stream = pkgutil.get_data("sharp_aquos_rc", "commands/%s.yaml" % command_map)
+        #stream = pkgutil.get_data("sharp_aquos_rc", "commands/%s.yaml" % command_map)
+        stream = open('/config/custom_components/aquostv2/commands/{}.yaml'.format(command_map))
         self.command = yaml.load(stream)
 
     def _send_command_raw(self, command, opt=''):
@@ -59,12 +62,16 @@ class TV(object):
         # The connection could be lost (but not only after 3 minutes),
         # so we need to the remote commands to be sure about states
         # clear
+
         self._port.reset_output_buffer()
         self._port.reset_input_buffer()
         # Send command
         if opt != '':
             command += str(opt)
-        self._port.write(str.encode(command.ljust(8) + '\r'))
+        command = command.ljust(8)+'\r\n'
+        command = command.encode('utf-8')
+        _LOGGER.debug('*Sending "%s"', command)
+        self._port.write(command)
         self._port.flush()
         # receive
         result = bytearray()
@@ -79,11 +86,12 @@ class TV(object):
             result += char
             if result and result[-1:] == b'\r':
                 break
-        status = bytes(result)
-
-        if status == "OK":
+        status = bytes(result).strip().decode("utf-8")
+        _LOGGER.debug('*Received "%s"', status)
+        
+        if "OK" in status:
             return True
-        if status == "ERR":
+        if "ERR" in status:
             return False
         try:
             return int(status)
