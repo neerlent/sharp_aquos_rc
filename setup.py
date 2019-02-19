@@ -3,7 +3,7 @@ setup(
     name = 'sharp_aquos_rc',
     packages = ['sharp_aquos_rc'],
     package_data={'sharp_aquos_rc': ['commands/*.yaml']},
-    version = '0.4',
+    version = '0.4.1.dev',
     description = 'Control Sharp Aquos SmartTVs through the IP interface.',
     author = 'Jeffrey Moore',
     author_email = 'jmoore987@yahoo.com',

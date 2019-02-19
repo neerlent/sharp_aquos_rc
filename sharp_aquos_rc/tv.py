@@ -73,13 +73,14 @@ class TV(object):
                 sock_con.recv(1024)
 
                 # Send command
+                payload = command
                 if opt != '':
-                    command += str(opt)
+                    payload += str(opt)
                     
-                sock_con.send(str.encode(command.ljust(8) + '\r'))
+                sock_con.send(str.encode(payload.ljust(8) + '\r'))
                 status = bytes.decode(sock_con.recv(1024)).strip()
                 
-                _LOGGER.debug(command+": "+status)
+                _LOGGER.debug(payload+": "+status)
             except (OSError, socket.error) as exp:
                 time.sleep(0.1)
                 if time.time() >= end_time:
@@ -88,18 +89,16 @@ class TV(object):
                 sock_con.close()
                 # Sometimes the status is empty so
                 # We need to retry
-                if status != u'':
-                    break
-
-        if status == "OK":
-            return True
-        elif status == "ERR":
-            return False
-        else:
-            try:
-                return int(status)
-            except ValueError:
-                return status
+                if status == "OK":
+                    return True
+                elif status == "ERR":
+                    return False
+                else:
+                    try:
+                        return int(status)
+                    except: 
+                        continue
+                        
 
     def _check_command_name(self, name, dicitionary):
         if name not in dicitionary:
