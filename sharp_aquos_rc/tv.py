@@ -21,7 +21,7 @@ class TV(object):
 
     def __init__(self, url, baudrate=9600, stopbits=serial.STOPBITS_ONE,
                  bytesize=serial.EIGHTBITS, parity=serial.PARITY_NONE,
-                 timeout=1, write_timeout=1, command_map='us'):
+                 timeout=2, write_timeout=2, command_map='us'):
         """
         Initialize the client.
         """
@@ -38,7 +38,7 @@ class TV(object):
 
         #stream = pkgutil.get_data("sharp_aquos_rc", "commands/%s.yaml" % command_map)
         stream = open('/config/custom_components/aquostv2/commands/{}.yaml'.format(command_map))
-        self.command = yaml.load(stream)
+        self.command = yaml.load(stream, Loader=yaml.FullLoader)
 
     def _send_command_raw(self, command, opt=''):
         """
@@ -186,14 +186,14 @@ class TV(object):
         if opt == '?':
             index = self._send_command('input_index')
             if index == False:
-                return self.command['input']['tv']['name']
+                return False
             else:
-               for key in self.command['input']:
+                for key in self.command['input']:
                     if (self.command['input'][key]['index'] == index):
-                        return self.command['input'][key]['name']
+                        return self.command['input'][key]['index']
         else:
             for key in self.command['input']:
-                if (key == opt) or (self.command['input'][key]['name'] == opt):
+                if (key == opt) or (self.command['input'][key]['index'] == opt):
                     return self._send_command(['input', key, 'command'])
             return False
 
